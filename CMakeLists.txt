@@ -11,9 +11,17 @@ else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
+include_directories(include)
+
 add_executable(chatroom_epoll
     src/net/main_epoll.cpp
     src/net/EpollPoller.cpp
 )
-target_include_directories(chatroom_epoll PUBLIC include)
 target_link_libraries(chatroom_epoll PRIVATE pthread)
+
+add_executable(chatroom_threadpool
+    src/net/main_threadpool.cpp
+    src/net/EpollPoller.cpp
+    src/threadpool/ThreadPool.cpp
+)
+target_link_libraries(chatroom_threadpool PRIVATE pthread)
