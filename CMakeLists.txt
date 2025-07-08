@@ -11,6 +11,9 @@ else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
 endif()
 
-add_executable(chatroom
-    src/main.cpp
+add_executable(chatroom_epoll
+    src/net/main_epoll.cpp
+    src/net/EpollPoller.cpp
 )
+target_include_directories(chatroom_epoll PUBLIC include)
+target_link_libraries(chatroom_epoll PRIVATE pthread)
