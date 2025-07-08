@@ -9,7 +9,7 @@ constexpr uint16_t PORT = 12345;
 
 int main() {
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    int opt = 1;
+    int opt = 65536;
     setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     sockaddr_in addr{};
@@ -23,12 +23,13 @@ int main() {
     EpollPoller poller;
     poller.addFd(listen_fd, EPOLLIN | EPOLLET);
 
-    std::cout << "Echo server (epoll) on :"<< PORT << '\n';
+    std::cout << "Server on port "<< PORT << '\n';
     char buf[4096];
 
     while (true) {
         for (auto& ev : poller.poll(-1)) {
             if (ev.data.fd == listen_fd) {
+                // create new connections
                 while (true) {
                     sockaddr_in cli{};
                     socklen_t len = sizeof(cli);
@@ -38,6 +39,7 @@ int main() {
                     poller.addFd(conn_fd, EPOLLIN | EPOLLET);
                 }
             } else if (ev.events & EPOLLIN) {
+                // handle read events
                 int fd = ev.data.fd;
                 while (true) {
                     ssize_t n = read(fd, buf, sizeof(buf));
