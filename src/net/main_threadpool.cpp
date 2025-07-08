@@ -1,5 +1,6 @@
 #include "net/EpollPoller.h"
 #include "net/SocketUtil.h"
+#include "net/Connection.h"
 #include "threadpool/ThreadPool.h"
 #include <arpa/inet.h>
 #include <cstring>
@@ -9,14 +10,6 @@
 #include <mutex>
 
 constexpr uint16_t PORT = 12345;
-
-struct Connection {
-    int fd;
-    std::string buffer;
-    std::mutex mutex;
-    
-    Connection(int socket_fd) : fd(socket_fd) {}
-};
 
 class EpollThreadPoolServer {
 private:
@@ -122,12 +115,15 @@ private:
     
     void processReadTask(int fd) {
         char buf[4096];
-        std::string data;
         
         while (true) {
             ssize_t n = read(fd, buf, sizeof(buf));
             if (n > 0) {
-                data.append(buf, n);
+                // 将数据添加到连接的读缓冲区
+                auto it = connections_.find(fd);
+                if (it != connections_.end()) {
+                    it->second->appendToReadBuffer(buf, n);
+                }
             } else if (n == 0) {
                 handleConnectionClose(fd);
                 return;
@@ -142,8 +138,13 @@ private:
             }
         }
         
-        if (!data.empty()) {
-            processData(fd, data);
+        // 处理读缓冲区中的数据
+        auto it = connections_.find(fd);
+        if (it != connections_.end() && it->second->getReadBufferSize() > 0) {
+            std::string data = it->second->extractReadBuffer();
+            if (!data.empty()) {
+                processData(fd, data);
+            }
         }
     }
     
@@ -151,14 +152,42 @@ private:
         sendResponse(fd, data);
     }
     
-    void sendResponse(int fd, const std::string& response) {        
-        size_t sent = 0;
-        while (sent < response.length()) {
-            ssize_t n = write(fd, response.c_str() + sent, response.length() - sent);
+    void sendResponse(int fd, const std::string& response) {
+        auto it = connections_.find(fd);
+        if (it == connections_.end()) {
+            return;
+        }
+        
+        // 将响应添加到写缓冲区
+        it->second->appendToWriteBuffer(response);
+        
+        // 尝试发送数据
+        trySendData(fd);
+    }
+    
+    void trySendData(int fd) {
+        auto it = connections_.find(fd);
+        if (it == connections_.end()) {
+            return;
+        }
+        
+        char buf[4096];
+        while (it->second->getWriteBufferSize() > 0) {
+            std::string data = it->second->extractWriteBuffer(sizeof(buf));
+            if (data.empty()) break;
+            
+            ssize_t n = write(fd, data.c_str(), data.length());
             if (n > 0) {
-                sent += static_cast<size_t>(n);
+                // 如果只发送了部分数据，将剩余数据放回缓冲区
+                if (static_cast<size_t>(n) < data.length()) {
+                    std::string remaining = data.substr(n);
+                    it->second->appendToWriteBuffer(remaining);
+                    break;  // 发送缓冲区满，等待下次写事件
+                }
             } else if (n == -1) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    // 发送缓冲区满，将数据放回缓冲区
+                    it->second->appendToWriteBuffer(data);
                     break;
                 } else {
                     std::cerr << "Write error on fd " << fd << ": " << strerror(errno) << std::endl;
@@ -168,7 +197,7 @@ private:
             }
         }
         
-        std::cout << "Sent response to fd " << fd << ": " << response << std::endl;
+        std::cout << "Sent response to fd " << fd << std::endl;
     }
     
     void handleConnectionError(int fd) {
@@ -176,13 +205,17 @@ private:
         handleConnectionClose(fd);
     }
     
-    void handleConnectionClose(int fd) {
+        void handleConnectionClose(int fd) {
         poller_.delFd(fd);
-        close(fd);
+        
         {
             std::lock_guard<std::mutex> lock(connections_mutex_);
-            connections_.erase(fd);
-        }        
+            auto it = connections_.find(fd);
+            if (it != connections_.end()) {
+                it->second->close();  // 使用 Connection 的 close 方法
+                connections_.erase(it);
+            }
+        }
     }
 };
 

@@ -22,6 +22,7 @@ target_link_libraries(chatroom_epoll PRIVATE pthread)
 add_executable(chatroom_threadpool
     src/net/main_threadpool.cpp
     src/net/EpollPoller.cpp
+    src/net/Connection.cpp
     src/threadpool/ThreadPool.cpp
 )
 target_link_libraries(chatroom_threadpool PRIVATE pthread)
