@@ -12,11 +12,11 @@ void EpollPoller::addFd(int fd, uint32_t ev) {
     epoll_event e{.events = ev, .data = {.fd = fd}};
     epoll_ctl(epfd_, EPOLL_CTL_ADD, fd, &e);
 }
-void EpollPoller::modFd(int fd, uint32_t ev) {
+void EpollPoller::modifyFd(int fd, uint32_t ev) {
     epoll_event e{.events = ev, .data = {.fd = fd}};
     epoll_ctl(epfd_, EPOLL_CTL_MOD, fd, &e);
 }
-void EpollPoller::delFd(int fd) {
+void EpollPoller::removeFd(int fd) {
     epoll_ctl(epfd_, EPOLL_CTL_DEL, fd, nullptr);
 }
 std::vector<epoll_event> EpollPoller::poll(int timeout) {
