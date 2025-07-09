@@ -57,19 +57,7 @@ struct RoomMember {
 };
 
 class RoomDao {
-private:
-    static RoomDao* instance_;
-    RoomDao() = default;
-    RoomDao(const RoomDao&) = delete;
-    RoomDao& operator=(const RoomDao&) = delete;
-
 public:
-    static RoomDao* getInstance();
-    static void init(const std::string& host, int port, 
-                    const std::string& username, const std::string& password,
-                    const std::string& database);
-    static void cleanup();
-    
     virtual ~RoomDao() = default;
     
     virtual bool createRoom(const Room& room) = 0;

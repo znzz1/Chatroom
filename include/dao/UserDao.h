@@ -40,19 +40,7 @@ struct User {
 };
 
 class UserDao {
-private:
-    static UserDao* instance_;
-    UserDao() = default;
-    UserDao(const UserDao&) = delete;
-    UserDao& operator=(const UserDao&) = delete;
-
 public:
-    static UserDao* getInstance();
-    static void init(const std::string& host, int port, 
-                    const std::string& username, const std::string& password,
-                    const std::string& database);
-    static void cleanup();
-    
     virtual ~UserDao() = default;
     
     virtual bool createUser(const User& user) = 0;

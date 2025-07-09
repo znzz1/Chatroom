@@ -6,23 +6,12 @@
 
 class MySqlRoomDao : public RoomDao {
 private:
-    MYSQL* mysql_;
-    std::string host_;
-    int port_;
-    std::string username_;
-    std::string password_;
-    std::string database_;
-    
-    bool connect();
-    void disconnect();
     bool executeQuery(const std::string& query);
     MYSQL_RES* executeSelect(const std::string& query);
     
 public:
-    MySqlRoomDao(const std::string& host, int port, 
-                 const std::string& username, const std::string& password,
-                 const std::string& database);
-    ~MySqlRoomDao();
+    MySqlRoomDao() = default;
+    ~MySqlRoomDao() = default;
     
     bool createRoom(const Room& room) override;
     std::optional<Room> getRoomById(int id) override;
