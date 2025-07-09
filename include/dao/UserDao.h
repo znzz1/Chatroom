@@ -12,12 +12,12 @@ enum class UserRole {
 
 struct User {
     int id;
-    std::string username;
+    std::string discriminator;
+    std::string name;
     std::string password_hash;
     std::string email;
     UserRole role;
     bool is_online;
-    std::string last_login_time;
     std::string created_time;
     
     User() : id(0), role(UserRole::NORMAL), is_online(false) {
@@ -28,14 +28,20 @@ struct User {
             created_time.pop_back();
         }
     }
-    User(const std::string& name, const std::string& pwd, UserRole r = UserRole::NORMAL) 
-        : id(0), username(name), password_hash(pwd), role(r), is_online(false) {
+    
+    User(const std::string& name, const std::string& email, 
+         const std::string& pwd, UserRole r = UserRole::NORMAL) 
+        : id(0), name(name), email(email), password_hash(pwd), role(r), is_online(false) {
         auto now = std::chrono::system_clock::now();
         auto time_t = std::chrono::system_clock::to_time_t(now);
         created_time = std::ctime(&time_t);
         if (!created_time.empty() && created_time.back() == '\n') {
             created_time.pop_back();
         }
+    }
+    
+    std::string getFullName() const {
+        return name + "#" + discriminator;
     }
 };
 
@@ -45,14 +51,24 @@ public:
     
     virtual bool createUser(const User& user) = 0;
     virtual std::optional<User> getUserById(int id) = 0;
-    virtual std::optional<User> getUserByUsername(const std::string& username) = 0;
+    virtual std::optional<User> getUserByEmail(const std::string& email) = 0;
+    virtual std::optional<User> getUserByFullName(const std::string& name, const std::string& discriminator) = 0;
     virtual bool updateUser(const User& user) = 0;
     virtual bool deleteUser(int id) = 0;
     
     virtual bool setUserOnline(int id, bool online) = 0;
     virtual std::vector<User> getOnlineUsers() = 0;
     
-    virtual bool authenticateUser(const std::string& username, const std::string& password) = 0;
+    virtual bool authenticateUser(const std::string& email, const std::string& password) = 0;
+    
+    virtual bool updateName(int user_id, const std::string& new_name) = 0;
+    virtual std::string getNameById(int user_id) = 0;
+    virtual std::string getFullNameById(int user_id) = 0;
+    
+    virtual bool isEmailExists(const std::string& email) = 0;
+    virtual bool isNameDiscriminatorExists(const std::string& name, const std::string& discriminator) = 0;
+    
+    virtual std::string generateDiscriminator(const std::string& name) = 0;
     
     virtual int getTotalUserCount() = 0;
     virtual int getOnlineUserCount() = 0;

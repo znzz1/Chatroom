@@ -169,8 +169,8 @@ bool MySqlRoomDao::addUserToRoom(int room_id, int user_id) {
     }
     
     std::stringstream ss;
-    ss << "INSERT INTO room_members (room_id, user_id, username, email, role, join_time) "
-       << "SELECT " << room_id << ", " << user_id << ", username, email, role, NOW() "
+    ss << "INSERT INTO room_members (room_id, user_id, name, discriminator, email, role, join_time) "
+       << "SELECT " << room_id << ", " << user_id << ", name, discriminator, email, role, NOW() "
        << "FROM users WHERE id = " << user_id;
     
     if (!executeQuery(ss.str())) return false;
@@ -215,10 +215,11 @@ std::vector<RoomMember> MySqlRoomDao::getRoomMemberDetails(int room_id) {
         RoomMember member;
         member.room_id = std::stoi(row[0]);
         member.user_id = std::stoi(row[1]);
-        member.username = row[2];
-        member.email = row[3];
-        member.role = static_cast<UserRole>(std::stoi(row[4]));
-        member.join_time = row[5];
+        member.name = row[2];
+        member.discriminator = row[3];
+        member.email = row[4];
+        member.role = static_cast<UserRole>(std::stoi(row[5]));
+        member.join_time = row[6];
         members.push_back(member);
     }
     

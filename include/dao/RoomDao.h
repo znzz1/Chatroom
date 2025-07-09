@@ -40,20 +40,25 @@ struct Room {
 struct RoomMember {
     int room_id;
     int user_id;
-    std::string username;
+    std::string name;
+    std::string discriminator;
     std::string email;
     UserRole role;
     std::string join_time;
     
     RoomMember() : room_id(0), user_id(0), role(UserRole::NORMAL) {}
-    RoomMember(int room, int user, const std::string& name, const std::string& mail, UserRole r = UserRole::NORMAL) 
-        : room_id(room), user_id(user), username(name), email(mail), role(r) {
+    RoomMember(int room, int user, const std::string& user_name, const std::string& disc, const std::string& mail, UserRole r = UserRole::NORMAL) 
+        : room_id(room), user_id(user), name(user_name), discriminator(disc), email(mail), role(r) {
         auto now = std::chrono::system_clock::now();
         auto time_t = std::chrono::system_clock::to_time_t(now);
         join_time = std::ctime(&time_t);
         if (!join_time.empty() && join_time.back() == '\n') {
             join_time.pop_back();
         }
+    }
+    
+    std::string getFullName() const {
+        return name + "#" + discriminator;
     }
 };
 
