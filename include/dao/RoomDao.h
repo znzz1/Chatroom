@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <chrono>
+#include "UserDao.h"
 
 enum class RoomStatus {
     ACTIVE = 1,
