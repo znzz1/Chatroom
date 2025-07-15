@@ -11,7 +11,6 @@ public:
     void removeFd(int fd);
     std::vector<epoll_event> poll(int timeoutMs = -1);
     
-    // 别名方法
     void modFd(int fd, uint32_t events) { modifyFd(fd, events); }
     void delFd(int fd) { removeFd(fd); }
 
