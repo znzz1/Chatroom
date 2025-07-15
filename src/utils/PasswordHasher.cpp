@@ -20,10 +20,8 @@ std::string PasswordHasher::generateSalt(int length) {
 }
 
 std::string PasswordHasher::hashPassword(const std::string& password, const std::string& salt) {
-    // 组合密码和盐值
     std::string combined = password + salt;
     
-    // 使用OpenSSL 3.0 EVP接口计算SHA256哈希
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
     if (!ctx) {
         return "";
@@ -48,7 +46,6 @@ std::string PasswordHasher::hashPassword(const std::string& password, const std:
     
     EVP_MD_CTX_free(ctx);
     
-    // 转换为十六进制字符串
     return bytesToHex(hash, hash_len);
 }
 
@@ -61,7 +58,6 @@ std::string PasswordHasher::hashPasswordWithSalt(const std::string& password) {
     std::string salt = generateSalt();
     std::string hash = hashPassword(password, salt);
     
-    // 格式: salt$hash
     return salt + "$" + hash;
 }
 
