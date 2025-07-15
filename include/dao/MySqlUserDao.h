@@ -1,39 +1,27 @@
 #pragma once
-#include "UserDao.h"
-#include <mysql/mysql.h>
-#include <string>
+#include "dao/UserDao.h"
+#include "dao/SqlDao.h"
 #include <memory>
+#include <optional>
 
-class MySqlUserDao : public UserDao {
-private:
-    bool executeQuery(const std::string& query);
-    MYSQL_RES* executeSelect(const std::string& query);
-    
+class MySqlUserDao : public UserDao, public SqlDao<User> {
 public:
     MySqlUserDao() = default;
     ~MySqlUserDao() = default;
     
-    bool createUser(const User& user) override;
-    std::optional<User> getUserById(int id) override;
-    std::optional<User> getUserByEmail(const std::string& email) override;
-    std::optional<User> getUserByFullName(const std::string& name, const std::string& discriminator) override;
-    bool updateUser(const User& user) override;
-    bool deleteUser(int id) override;
+    QueryResult<User> createUser(const std::string& name, const std::string& email, 
+                                const std::string& password_hash, UserRole role = UserRole::NORMAL) override;
     
-    bool setUserOnline(int id, bool online) override;
-    std::vector<User> getOnlineUsers() override;
+    QueryResult<void> changePassword(int user_id, const std::string& old_password, const std::string& new_password) override;
+    QueryResult<void> changeDisplayName(int user_id, const std::string& new_name) override;
     
-    bool authenticateUser(const std::string& email, const std::string& password) override;
+    QueryResult<User> authenticateUser(const std::string& email, const std::string& password) override;
     
-    bool updateName(int user_id, const std::string& new_name) override;
-    std::string getNameById(int user_id) override;
-    std::string getFullNameById(int user_id) override;
-    
-    bool isEmailExists(const std::string& email) override;
-    bool isNameDiscriminatorExists(const std::string& name, const std::string& discriminator) override;
-    
-    std::string generateDiscriminator(const std::string& name) override;
-    
-    int getTotalUserCount() override;
-    int getOnlineUserCount() override;
+    QueryResult<User> getUserById(int id) override;
+    QueryResult<User> getUserByEmail(const std::string& email) override;
+    QueryResult<User> getUserByFullName(const std::string& name, const std::string& discriminator) override;
+        
+protected:
+    std::string generateUniqueDiscriminator(std::shared_ptr<DatabaseConnection> conn, const std::string& name) override;
+    User createFromResultSet(const std::vector<std::string>& row) override;
 }; 
