@@ -121,4 +121,7 @@ core.*
 *.dSYM/
 
 # Linux specific
-*.so.* 
+*.so.*
+
+# New line for config/database.env
+config/database.env 
