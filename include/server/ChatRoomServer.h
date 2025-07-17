@@ -12,6 +12,10 @@
 
 constexpr int ROOM_ID_NONE = -1;
 constexpr int EPOLL_TIMEOUT_MS = 1000;
+constexpr int MAX_CONNECTIONS = 10000;
+constexpr int MAX_ACCEPT_PER_LOOP = 100;
+constexpr int MAX_READ_BUFFER_SIZE = 1024 * 1024;
+constexpr int MAX_WRITE_BUFFER_SIZE = 1024 * 1024;
 
 struct RoomInfo {
     std::string name;
@@ -19,7 +23,7 @@ struct RoomInfo {
     int max_users;
     int creator_id;
     std::string created_time;
-    std::vector<int> users;
+    std::unordered_set<int> users;
     std::mutex users_mutex;
 
     RoomInfo(const std::string& name_, const std::string& description_, int max_users_, int creator_id_, const std::string& created_time_)
@@ -50,8 +54,11 @@ private:
     unordered_map<int, RoomInfo> active_rooms_;
     std::mutex active_rooms_mutex_;
 
-    unordered_map<int, RoomInfo> rooms_;
-    std::mutex rooms_mutex_;
+    unordered_map<int, RoomInfo> inactive_rooms_;
+    std::mutex inactive_rooms_mutex_;
+
+    unordered_map<int, int> fd_to_userId_;
+    std::mutex fd_to_userId_mutex_;
 
     unordered_map<int, int> userId_to_fd_;
     std::mutex userId_to_fd_mutex_;
@@ -65,52 +72,45 @@ private:
     void setupServices();
     void loadRoomsFromDatabase();
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+private:
     void handleEvent(const epoll_event& ev);
     void handleNewConnection();
     void handleReadEvent(int fd);
     void handleWriteEvent(int fd);
     void handleConnectionError(int fd);
     void handleConnectionClose(int fd);
-    
-    void processReadTask(int fd);
-    void processWriteTask(int fd);
-    void processMessage(int fd, const Message& message);
-    
-    void handleApiRequest(int fd, const Message& message);
-    void handleLogin(int fd, const Json::Value& root);
+
+private:
+    void handleRequest(int fd, const Message& message);
     void handleRegister(int fd, const Json::Value& root);
+    void handleChangePassword(int fd, const Json::Value& root);
+    void handleChangeDisplayName(int fd, const Json::Value& root);
+    void handleLogin(int fd, const Json::Value& root);
+    void handleLogout(int fd, const Json::Value& root);
     void handleGetActiveRooms(int fd);
+    void handleGetAllRooms(int fd);
     void handleGetRoomInfo(int fd, const Json::Value& root);
     void handleCreateRoom(int fd, const Json::Value& root);
+    void handleDeleteRoom(int fd, const Json::Value& root);
+    void handleSetRoomName(int fd, const Json::Value& root);
+    void handleSetRoomDescription(int fd, const Json::Value& root);
+    void handleSetRoomMaxUsers(int fd, const Json::Value& root);
+    void handleSetRoomStatus(int fd, const Json::Value& root);
+    void handleSendMessage(int fd, const Json::Value& root);
     void handleGetMessageHistory(int fd, const Json::Value& root);
-    
-    void handleRealTimeMessage(int fd, const Message& message);
-    void handleSendMessage(int fd, const Message& message);
-    
-    void broadcastMessageToRoom(int roomId, int senderId, const std::string& content, const std::string& displayName);
+    void handleJoinRoom(int fd, const Json::Value& root);
+    void handleLeaveRoom(int fd, const Json::Value& root);
+    void handleGetRoomMembers(int fd, const Json::Value& root);
+    void handleGetUserInfo(int fd, const Json::Value& root);
+
+private:
     void notifyUserJoinRoom(int roomId, int userId, const std::string& displayName);
-    void notifyUserLeaveRoom(int roomId, int userId, const std::string& displayName);
-    
-    void trySendData(int fd);
-    void sendResponse(int fd, uint16_t type, const Json::Value& data);
-    void sendErrorResponse(int fd, const std::string& message, int code);
-    Json::Value buildResponse(const std::string& type, bool success, int code, const std::string& message = "") const;
-    
-    void addOnlineUser(int userId, const std::string& displayName, int roomId, std::shared_ptr<Connection> conn);
-    void removeOnlineUser(int userId);
-    void moveUserToRoom(int userId, int newRoomId);
+    void notifyUserLeaveRoom(int roomId, int userId);
+
+    void notifyRoomNameUpdate(int roomId, const std::string& newName);
+    void notifyRoomDescriptionUpdate(int roomId, const std::string& newDescription);
+    void notifyRoomMaxUsersUpdate(int roomId, int newMaxUsers);
+    void notifyRoomStatusChange(int roomId, int newStatus);
+
+    void broadcastMessageToRoom(int roomId, int senderId, const std::string& content, const std::string& displayName);
 }; 
