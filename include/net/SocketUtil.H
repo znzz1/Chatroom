@@ -4,12 +4,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-inline void setNonBlocking(int fd) {
+inline bool setNonBlocking(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags < 0) {
-        return;
+        return false;
     }
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+        return false;
+    }
+    return true;
 }
 
 #endif

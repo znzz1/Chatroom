@@ -3,44 +3,14 @@
 #include <cstring>
 #include <arpa/inet.h>
 #include <iostream>
+#include <algorithm>
 
 Connection::Connection(int fd) : fd_(fd) {}
 
 Connection::~Connection() {
-    close();
-}
-
-void Connection::appendToReadBuffer(const char* data, size_t len) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    read_buffer_.append(data, len);
-}
-
-void Connection::clearReadBuffer() {
     std::lock_guard<std::mutex> lock(mutex_);
     read_buffer_.clear();
-}
-
-size_t Connection::getReadBufferSize() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return read_buffer_.size();
-}
-
-bool Connection::hasCompleteMessage() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    
-    if (read_buffer_.size() < HEADER_SIZE) {
-        return false;
-    }
-    
-    uint16_t length;
-    std::memcpy(&length, read_buffer_.data() + 2, sizeof(length));
-    length = ntohs(length);
-    
-    if (length > MAX_MESSAGE_LENGTH) {
-        return false;
-    }
-    
-    return read_buffer_.size() >= HEADER_SIZE + length;
+    write_buffer_.clear();
 }
 
 std::vector<Message> Connection::extractMessages() {
@@ -54,19 +24,12 @@ std::vector<Message> Connection::extractMessages() {
         type = ntohs(type);
         length = ntohs(length);
         
-        if (length > MAX_MESSAGE_LENGTH) {
-            std::cerr << "[Connection] Message too long, dropped. Length: " << length << std::endl;
-            read_buffer_.clear();
-            break;
-        }
+        // 无完整消息 等待更多数据
         if (read_buffer_.size() < HEADER_SIZE + length) {
             break;
         }
-        Message msg;
-        msg.type = type;
-        msg.length = length;
-        msg.data = read_buffer_.substr(HEADER_SIZE, length);
-        messages.push_back(std::move(msg));
+        
+        messages.emplace_back(type, read_buffer_.substr(HEADER_SIZE, length));
         read_buffer_.erase(0, HEADER_SIZE + length);
     }
     return messages;
@@ -74,52 +37,102 @@ std::vector<Message> Connection::extractMessages() {
 
 void Connection::appendToWriteBuffer(const std::string& data) {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    if (write_buffer_.size() + data.size() > MAX_WRITE_BUFFER_SIZE) {
+        return;
+    }
     write_buffer_.append(data);
 }
 
-std::string Connection::extractWriteBuffer(size_t maxLen) {
+Connection::SendResult Connection::sendFromWriteBuffer(int fd, size_t maxLen) {
     std::lock_guard<std::mutex> lock(mutex_);
     
+    SendResult result;
+    result.bytes_sent = 0;
+    result.has_more_data = false;
+    result.error = false;
+    
     if (write_buffer_.empty()) {
-        return "";
+        return result;
     }
     
     size_t len = std::min(maxLen, write_buffer_.size());
-    std::string data = write_buffer_.substr(0, len);
-    write_buffer_.erase(0, len);
+    ssize_t n = send(fd, write_buffer_.data(), len, 0);
     
-    return data;
+    if (n < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            result.error = false; // 不是真正的错误
+        } else {
+            result.error = true;
+        }
+        return result;
+    }
+    
+    result.bytes_sent = n;
+    if (n > 0) {
+        write_buffer_.erase(0, n);
+    }
+    
+    result.has_more_data = !write_buffer_.empty();
+    return result;
 }
 
-void Connection::clearWriteBuffer() {
+Connection::ReadResult Connection::recvToReadBuffer(int fd, size_t maxLen) {
     std::lock_guard<std::mutex> lock(mutex_);
-    write_buffer_.clear();
-}
-
-size_t Connection::getWriteBufferSize() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return write_buffer_.size();
+    
+    ReadResult result;
+    result.bytes_read = 0;
+    result.error = false;
+    result.connection_closed = false;
+    
+    if (read_buffer_.size() + maxLen >= MAX_READ_BUFFER_SIZE) {
+        result.error = true;
+        return result;
+    }
+    
+    size_t original_size = read_buffer_.size();
+    read_buffer_.resize(original_size + maxLen);
+    ssize_t n = recv(fd, &read_buffer_[original_size], maxLen, 0);
+    
+    if (n < 0) {
+        read_buffer_.resize(original_size);
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            result.error = false;
+        } else {
+            result.error = true;
+        }
+        return result;
+    } else if (n == 0) {
+        read_buffer_.resize(original_size);
+        result.connection_closed = true;
+        return result;
+    }
+    
+    read_buffer_.resize(original_size + n);
+    result.bytes_read = n;
+    return result;
 }
 
 void Connection::sendMessage(uint16_t type, const std::string& data) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (closed_) return;
-    
-    if (data.length() > MAX_MESSAGE_LENGTH) {
-        std::cerr << "[Connection] sendMessage: data too long, not sent. Length: " << data.length() << std::endl;
-        return;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        
+        if (data.length() > MAX_MESSAGE_LENGTH) {
+            return;
+        }
+        
+        write_buffer_.reserve(write_buffer_.size() + HEADER_SIZE + data.length());
+
+        uint16_t msgType = htons(type);
+        uint16_t length  = htons(data.length());
+        write_buffer_.append(reinterpret_cast<const char*>(&msgType), sizeof(msgType));
+        write_buffer_.append(reinterpret_cast<const char*>(&length),  sizeof(length));
+        write_buffer_.append(data);
     }
-    
-    uint16_t msgType = htons(type);
-    uint16_t length = htons(data.length());
-    write_buffer_.append(reinterpret_cast<const char*>(&msgType), sizeof(msgType));
-    write_buffer_.append(reinterpret_cast<const char*>(&length), sizeof(length));
-    write_buffer_.append(data);
+    if (write_callback_) write_callback_(fd_);
 }
 
-void Connection::close() {
-    if (!closed_) {
-        ::close(fd_);
-        closed_ = true;
-    }
-} 
+void Connection::setWriteEventCallback(std::function<void(int)> callback) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    write_callback_ = std::move(callback);
+}
