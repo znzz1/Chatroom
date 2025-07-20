@@ -13,7 +13,7 @@ public:
     virtual QueryResult<User> createUser(const std::string& name, const std::string& email, 
                                           const std::string& password_hash, UserRole role = UserRole::NORMAL) = 0;
 
-    virtual QueryResult<void> changePassword(int user_id, const std::string& old_password, const std::string& new_password) = 0;
+    virtual QueryResult<void> changePassword(const std::string& email, const std::string& old_password, const std::string& new_password) = 0;
     virtual QueryResult<void> changeDisplayName(int user_id, const std::string& new_name) = 0;
 
     virtual QueryResult<User> authenticateUser(const std::string& email, const std::string& password) = 0;

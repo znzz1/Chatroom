@@ -12,7 +12,7 @@ public:
     QueryResult<User> createUser(const std::string& name, const std::string& email, 
                                 const std::string& password_hash, UserRole role = UserRole::NORMAL) override;
     
-    QueryResult<void> changePassword(int user_id, const std::string& old_password, const std::string& new_password) override;
+    QueryResult<void> changePassword(const std::string& email, const std::string& old_password, const std::string& new_password) override;
     QueryResult<void> changeDisplayName(int user_id, const std::string& new_name) override;
     
     QueryResult<User> authenticateUser(const std::string& email, const std::string& password) override;

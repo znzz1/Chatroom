@@ -90,9 +90,9 @@ QueryResult<User> MySqlUserDao::createUser(const std::string& name, const std::s
     );
 }
 
-QueryResult<void> MySqlUserDao::changePassword(int user_id, const std::string& old_password, const std::string& new_password) {
+QueryResult<void> MySqlUserDao::changePassword(const std::string& email, const std::string& old_password, const std::string& new_password) {
     auto transactionResult = executeTransaction([&](std::shared_ptr<DatabaseConnection> conn) -> QueryResult<ExecuteResult> {
-        auto passwordResult = execute(conn, "SELECT password_hash FROM users WHERE id = ?", user_id);
+        auto passwordResult = execute(conn, "SELECT password_hash FROM users WHERE email = ?", email);
         if (passwordResult.isError()) return passwordResult;
         if (passwordResult.isNotFound()) return QueryResult<ExecuteResult>::NotFound("0");
         
@@ -101,7 +101,7 @@ QueryResult<void> MySqlUserDao::changePassword(int user_id, const std::string& o
         if (!oldPasswordCorrect) return QueryResult<ExecuteResult>::NotFound("2");
         
         std::string new_password_hash = PasswordHasher::hashPasswordWithSalt(new_password);
-        auto updateResult = execute(conn, "UPDATE users SET password_hash = ? WHERE id = ?", new_password_hash, user_id);
+        auto updateResult = execute(conn, "UPDATE users SET password_hash = ? WHERE email = ?", new_password_hash, email);
         if (updateResult.isError()) return updateResult;
         
         return QueryResult<ExecuteResult>::Success(std::monostate{});
