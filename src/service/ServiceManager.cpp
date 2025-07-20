@@ -14,8 +14,8 @@ ServiceResult<User> ServiceManager::registerUser(const std::string& email, const
     return user_service_.registerUser(email, password, name);
 }
 
-ServiceResult<void> ServiceManager::changePassword(int userId, const std::string& oldPassword, const std::string& newPassword) {
-    return user_service_.changePassword(userId, oldPassword, newPassword);
+ServiceResult<void> ServiceManager::changePassword(const std::string& email, const std::string& oldPassword, const std::string& newPassword) {
+    return user_service_.changePassword(email, oldPassword, newPassword);
 }
 
 ServiceResult<void> ServiceManager::changeDisplayName(int userId, const std::string& newName) {

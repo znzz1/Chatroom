@@ -8,7 +8,7 @@ public:
     ~UserService() = default;
     
     ServiceResult<User> registerUser(const std::string& email, const std::string& password, const std::string& name);    
-    ServiceResult<void> changePassword(int userId, const std::string& oldPassword, const std::string& newPassword);
+    ServiceResult<void> changePassword(const std::string& email, const std::string& oldPassword, const std::string& newPassword);
     ServiceResult<void> changeDisplayName(int userId, const std::string& newName);
     
     ServiceResult<void> sendMessage(int userId, int roomId, const std::string& content, const std::string& displayName);

@@ -20,11 +20,11 @@ ServiceResult<User> UserService::registerUser(const std::string& email, const st
     return ServiceResult<User>::Ok(*result.data, "注册成功");
 }
 
-ServiceResult<void> UserService::changePassword(int userId, const std::string& oldPassword, const std::string& newPassword) {
+ServiceResult<void> UserService::changePassword(const std::string& email, const std::string& oldPassword, const std::string& newPassword) {
     auto userDao = getUserDao();
     if (!userDao) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库连接失败");
 
-    auto result = userDao->changePassword(userId, oldPassword, newPassword);
+    auto result = userDao->changePassword(email, oldPassword, newPassword);
 
     if(result.isConnectionError()) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库连接失败");
     if(result.isInternalError()) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库内部错误");
@@ -38,6 +38,12 @@ ServiceResult<void> UserService::changePassword(int userId, const std::string& o
 ServiceResult<void> UserService::changeDisplayName(int userId, const std::string& newName) {
     auto userDao = getUserDao();
     if (!userDao) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "DAO层初始化失败");
+
+    // 首先验证用户是否存在
+    auto userResult = userDao->getUserById(userId);
+    if (userResult.isConnectionError()) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库连接失败");
+    if (userResult.isInternalError()) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库内部错误");
+    if (userResult.isNotFound()) return ServiceResult<void>::Fail(ErrorCode::NOT_FOUND, "用户不存在");
 
     auto result = userDao->changeDisplayName(userId, newName);
 
