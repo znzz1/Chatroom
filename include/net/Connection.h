@@ -18,13 +18,13 @@ struct ReadResult {
     bool connection_closed;
 };
 
-struct Message {
+struct NetworkMessage {
     uint16_t type;
     uint16_t length;
     std::string data;
     
-    Message() : type(0), length(0) {}
-    Message(uint16_t t, const std::string& d) 
+    NetworkMessage() : type(0), length(0) {}
+    NetworkMessage(uint16_t t, const std::string& d) 
         : type(t), length(d.length()), data(d) {}
 };
 
@@ -40,7 +40,7 @@ public:
     
     int getFd() const { return fd_; }
     
-    std::vector<Message> extractMessages();
+    std::vector<NetworkMessage> extractMessages();
     void appendToWriteBuffer(const std::string& data);
     
     SendResult sendFromWriteBuffer(int fd, size_t maxLen);

@@ -1,12 +1,9 @@
 #include "dao/MySqlUserDao.h"
-#include "database/DatabaseManager.h"
 #include "utils/PasswordHasher.h"
-#include "utils/ErrorMessages.h"
-#include <iostream>
+#include <unordered_set>
 #include <sstream>
 #include <iomanip>
 #include <random>
-#include <unordered_set>
 
 std::string MySqlUserDao::generateUniqueDiscriminator(std::shared_ptr<DatabaseConnection> conn, const std::string& name) {
     auto result = execute(conn, "SELECT discriminator FROM users WHERE name = ?", name);
@@ -57,11 +54,11 @@ std::string MySqlUserDao::generateUniqueDiscriminator(std::shared_ptr<DatabaseCo
 }
 
 User MySqlUserDao::createFromResultSet(const std::vector<std::string>& row) { 
-    return User{std::stoi(row[0]), row[1], row[2], row[3], (row[4] == "ADMIN") ? UserRole::ADMIN : UserRole::NORMAL, row[5]};
+    return User{std::stoi(row[0]), row[1], row[2], row[3], (row[4] == "TRUE"), row[5]};
 }
 
-QueryResult<User> MySqlUserDao::createUser(const std::string& name, const std::string& email, const std::string& password_hash, UserRole role) {
-    auto transactionResult = executeTransaction([&](std::shared_ptr<DatabaseConnection> conn) -> QueryResult<ExecuteResult> {
+QueryResult<User> MySqlUserDao::createUser(const std::string& name, const std::string& email, const std::string& password_hash, bool is_admin) {
+    QueryResult<ExecuteResult> transactionResult = executeTransaction([&](std::shared_ptr<DatabaseConnection> conn) -> QueryResult<ExecuteResult> {
         auto emailExistsResult = execute(conn, "SELECT COUNT(*) FROM users WHERE email = ?", email);
         if (emailExistsResult.isError()) return emailExistsResult;
         if (emailExistsResult.isSuccess()) return QueryResult<ExecuteResult>::NotFound("0");
@@ -71,27 +68,47 @@ QueryResult<User> MySqlUserDao::createUser(const std::string& name, const std::s
         if (uniqueDiscriminator == "1") return QueryResult<ExecuteResult>::InternalError();
         if (uniqueDiscriminator == "2") return QueryResult<ExecuteResult>::NotFound("1");
         
-        auto insertUserResult = execute(conn, "INSERT INTO users (discriminator, name, email, password_hash, role, created_time) VALUES (?, ?, ?, ?, ?, NOW())", 
-                                      uniqueDiscriminator, name, email, password_hash, role == UserRole::ADMIN ? "ADMIN" : "NORMAL");
+        auto insertUserResult = execute(conn, "INSERT INTO users (discriminator, name, email, password_hash, is_admin, created_time) VALUES (?, ?, ?, ?, ?, NOW())", 
+                                    uniqueDiscriminator, name, email, password_hash, is_admin ? "TRUE" : "FALSE");
         if (insertUserResult.isError()) return insertUserResult;
         
         auto userIdResult = execute(conn, "SELECT LAST_INSERT_ID()");
         if (userIdResult.isError()) return userIdResult;
         
-        int userId = std::stoi(*userIdResult.data);
-        return execute(conn, "SELECT id, discriminator, name, email, role, created_time FROM users WHERE id = ?", userId);
+        auto extractUserId = [](const ExecuteResult& result) -> std::optional<int> {
+            if (std::holds_alternative<std::vector<std::string>>(result)) {
+                const auto& row = std::get<std::vector<std::string>>(result);
+                if (!row.empty()) {
+                    try {
+                        return std::stoi(row[0]);
+                    } catch (...) {
+                        return std::nullopt;
+                    }
+                }
+            }
+            return std::nullopt;
+        };
+        if (!userIdResult.data) {
+            return QueryResult<ExecuteResult>::InternalError("No userId data");
+        }
+        auto idOpt = extractUserId(*userIdResult.data);
+        if (!idOpt) {
+            return QueryResult<ExecuteResult>::InternalError("No userId returned or invalid format");
+        }
+        int userId = *idOpt;
+        return execute(conn, "SELECT id, discriminator, name, email, is_admin, created_time FROM users WHERE id = ?", userId);
     });
     
-    return QueryResult<User>::convertFrom(
+    return QueryResult<User>::convertFrom<User>(
         transactionResult,
-        [](const std::vector<std::string>& row) {
+        [this](const std::vector<std::string>& row) {
             return createFromResultSet(row);
         }
     );
 }
 
 QueryResult<void> MySqlUserDao::changePassword(const std::string& email, const std::string& old_password, const std::string& new_password) {
-    auto transactionResult = executeTransaction([&](std::shared_ptr<DatabaseConnection> conn) -> QueryResult<ExecuteResult> {
+    QueryResult<ExecuteResult> transactionResult = executeTransaction([&](std::shared_ptr<DatabaseConnection> conn) -> QueryResult<ExecuteResult> {
         auto passwordResult = execute(conn, "SELECT password_hash FROM users WHERE email = ?", email);
         if (passwordResult.isError()) return passwordResult;
         if (passwordResult.isNotFound()) return QueryResult<ExecuteResult>::NotFound("0");
@@ -111,7 +128,7 @@ QueryResult<void> MySqlUserDao::changePassword(const std::string& email, const s
 }
 
 QueryResult<void> MySqlUserDao::changeDisplayName(int user_id, const std::string& new_name) {
-    auto transactionResult = executeTransaction([&](std::shared_ptr<DatabaseConnection> conn) -> QueryResult<ExecuteResult> {
+    QueryResult<ExecuteResult> transactionResult = executeTransaction([&](std::shared_ptr<DatabaseConnection> conn) -> QueryResult<ExecuteResult> {
         std::string new_discriminator = generateUniqueDiscriminator(conn, new_name);
         if (new_discriminator == "0") return QueryResult<ExecuteResult>::ConnectionError();
         if (new_discriminator == "1") return QueryResult<ExecuteResult>::InternalError();
@@ -128,9 +145,9 @@ QueryResult<void> MySqlUserDao::changeDisplayName(int user_id, const std::string
 }
 
 QueryResult<User> MySqlUserDao::authenticateUser(const std::string& email, const std::string& password) {
-    auto transactionResult = executeTransaction([&](std::shared_ptr<DatabaseConnection> conn) -> QueryResult<ExecuteResult> {
+    QueryResult<ExecuteResult> transactionResult = executeTransaction([&](std::shared_ptr<DatabaseConnection> conn) -> QueryResult<ExecuteResult> {
         auto userResult = execute(conn, 
-            "SELECT id, discriminator, name, email, role, created_time, password_hash "
+            "SELECT id, discriminator, name, email, is_admin, created_time, password_hash "
             "FROM users WHERE email = ?", 
             email);
         
@@ -144,54 +161,53 @@ QueryResult<User> MySqlUserDao::authenticateUser(const std::string& email, const
         return userResult;
     });
     
-    return QueryResult<User>::convertFrom(
+    return QueryResult<User>::convertFrom<User>(
         transactionResult,
-        [](const std::vector<std::string>& row) {
+        [this](const std::vector<std::string>& row) {
             return createFromResultSet(row);
         }
     );
 }
 
 QueryResult<User> MySqlUserDao::getUserById(int id) {
-    auto result = execute(
-        "SELECT id, discriminator, name, email, role, created_time "
+    QueryResult<ExecuteResult> execResult = execute(
+        "SELECT id, discriminator, name, email, is_admin, created_time "
         "FROM users WHERE id = ?",
         id
     );
     
-    return QueryResult<User>::convertFrom(
-        result,
-        [](const std::vector<std::string>& row) {
+    return QueryResult<User>::convertFrom<User>(
+        execResult,
+        [this](const std::vector<std::string>& row) {
             return createFromResultSet(row);
         }
     );
 }
 
 QueryResult<User> MySqlUserDao::getUserByEmail(const std::string& email) {
-    auto result = execute(
-        "SELECT id, discriminator, name, email, role, created_time "
+    QueryResult<ExecuteResult> execResult = execute(
+        "SELECT id, discriminator, name, email, is_admin, created_time "
         "FROM users WHERE email = ?",
         email
     );
     
-    return QueryResult<User>::convertFrom(
-        result,
-        [](const std::vector<std::string>& row) {
+    return QueryResult<User>::convertFrom<User>(
+        execResult,
+        [this](const std::vector<std::string>& row) {
             return createFromResultSet(row);
         }
     );
 }
 
 QueryResult<User> MySqlUserDao::getUserByFullName(const std::string& name, const std::string& discriminator) {
-    auto result = execute(
-        "SELECT id, discriminator, name, email, role, created_time "
+    QueryResult<ExecuteResult> execResult = execute(
+        "SELECT id, discriminator, name, email, is_admin, created_time "
         "FROM users WHERE name = ? AND discriminator = ?",
         name, discriminator
     );
-    
-    return QueryResult<User>::convertFrom(
-        result,
-        [](const std::vector<std::string>& row) {
+    return QueryResult<User>::convertFrom<User>(
+        execResult,
+        [this](const std::vector<std::string>& row) {
             return createFromResultSet(row);
         }
     );

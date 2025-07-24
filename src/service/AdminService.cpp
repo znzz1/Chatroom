@@ -29,11 +29,11 @@ ServiceResult<void> AdminService::deleteRoom(int roomId) {
     return ServiceResult<void>::Ok("房间删除成功");
 }
 
-ServiceResult<void> AdminService::setRoomStatus(int roomId, RoomStatus status) {
+ServiceResult<void> AdminService::setRoomStatus(int roomId, bool is_active) {
     auto roomDao = getRoomDao();
     if (!roomDao) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "DAO层初始化失败");
     
-    auto updateResult = roomDao->setRoomStatus(roomId, status); 
+    auto updateResult = roomDao->setRoomStatus(roomId, is_active); 
 
     if (updateResult.isConnectionError()) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库连接失败");
     if (updateResult.isInternalError()) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库内部错误");

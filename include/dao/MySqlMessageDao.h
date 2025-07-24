@@ -1,13 +1,13 @@
 #pragma once
 #include "dao/MessageDao.h"
-#include <vector>
-#include <string>
+#include "dao/SqlDao.h"
+#include <memory>
 
-class MySqlMessageDao : public MessageDao {
+class MySqlMessageDao : public MessageDao, public SqlDao<Message> {
 public:
     ~MySqlMessageDao() override = default;
 
-    MessageOperationResult sendMessageToRoom(int userId, int roomId, const std::string& content, const std::string& displayName) override;
+    QueryResult<void> sendMessageToRoom(int userId, int roomId, const std::string& content, const std::string& displayName, const std::string& sendTime) override;
     QueryResult<std::vector<Message>> getRecentMessages(int roomId, int max_count = 50) override;
     QueryResult<std::vector<Message>> getRecentMessagesByUser(int userId, int roomId, int max_count = 50) override;
 protected:

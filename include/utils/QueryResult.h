@@ -1,20 +1,19 @@
 #pragma once
+#include "database/ExecuteResult.h"
 #include <string>
 #include <optional>
 #include <utility>
 #include <vector>
 #include <functional>
-#include <variant>
-#include "database/DatabaseManager.h"
 
 enum class QueryStatus {
-    SUCCESS,                    // 查询成功，有数据
-    NOT_FOUND,                 // 查询成功，但没有找到数据
-    CONNECTION_ERROR,          // 数据库连接错误
-    INTERNAL_ERROR             // 其他数据库内部错误
+    SUCCESS,
+    NOT_FOUND,
+    CONNECTION_ERROR,
+    INTERNAL_ERROR
 };
 
-template<typename T = void>
+template<typename T>
 struct QueryResult {
     QueryStatus status;
     std::optional<T> data;
@@ -55,22 +54,29 @@ struct QueryResult {
     bool isConnectionError() const noexcept { return status == QueryStatus::CONNECTION_ERROR; }
     bool isInternalError() const noexcept { return status == QueryStatus::INTERNAL_ERROR; }
 
-
-    template<typename U>
-    static QueryResult<U> convertFrom(const QueryResult<ExecuteResult>& result, 
-                                    std::function<U(const std::vector<std::string>&)> converter) {
+    template<typename U, typename F>
+    static QueryResult<U> convertFrom(const QueryResult<ExecuteResult>& result, F&& converter) {
         if (result.isConnectionError()) return QueryResult<U>::ConnectionError(result.error_message);
         if (result.isInternalError()) return QueryResult<U>::InternalError(result.error_message);
         if (result.isNotFound()) return QueryResult<U>::NotFound(result.error_message);
         return QueryResult<U>::Success(converter(std::get<std::vector<std::string>>(*result.data)));
     }
 
-
-    static QueryResult<void> convertFrom(const QueryResult<ExecuteResult>& result) {
-        if (result.isConnectionError()) return QueryResult<void>::ConnectionError(result.error_message);
-        if (result.isInternalError()) return QueryResult<void>::InternalError(result.error_message);
-        if (result.isNotFound()) return QueryResult<void>::NotFound(result.error_message);
-        return QueryResult<void>::Success();
+    template<typename U, typename F>
+    static QueryResult<U> convertFromMultiple(const QueryResult<ExecuteResult>& result, F&& converter) {
+        if (result.isConnectionError()) return QueryResult<U>::ConnectionError(result.error_message);
+        if (result.isInternalError()) return QueryResult<U>::InternalError(result.error_message);
+        if (result.isNotFound()) return QueryResult<U>::NotFound(result.error_message);
+        
+        if (result.data && std::holds_alternative<std::vector<std::vector<std::string>>>(*result.data)) {
+            const auto& rows = std::get<std::vector<std::vector<std::string>>>(*result.data);
+            return QueryResult<U>::Success(converter(rows));
+        } else if (result.data && std::holds_alternative<std::vector<std::string>>(*result.data)) {
+            const auto& row = std::get<std::vector<std::string>>(*result.data);
+            std::vector<std::vector<std::string>> rows = {row};
+            return QueryResult<U>::Success(converter(rows));
+        }
+        return QueryResult<U>::InternalError("Invalid result format");
     }
 };
 
@@ -112,4 +118,11 @@ struct QueryResult<void> {
     bool isError() const noexcept { return status == QueryStatus::CONNECTION_ERROR || status == QueryStatus::INTERNAL_ERROR; }
     bool isConnectionError() const noexcept { return status == QueryStatus::CONNECTION_ERROR; }
     bool isInternalError() const noexcept { return status == QueryStatus::INTERNAL_ERROR; }
+    
+    static QueryResult<void> convertFrom(const QueryResult<ExecuteResult>& result) {
+        if (result.isConnectionError()) return QueryResult<void>::ConnectionError(result.error_message);
+        if (result.isInternalError()) return QueryResult<void>::InternalError(result.error_message);
+        if (result.isNotFound()) return QueryResult<void>::NotFound(result.error_message);
+        return QueryResult<void>::Success();
+    }
 }; 

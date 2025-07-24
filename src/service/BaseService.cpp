@@ -1,10 +1,19 @@
 #include "service/BaseService.h"
-#include "utils/PasswordHasher.h"
-#include "database/ConnectionPool.h"
 #include <iostream>
-#include "models/Enums.h"
 
 BaseService::BaseService() {
+}
+
+ServiceResult<User> BaseService::getUserInfo(int userId) {
+    auto userDao = getUserDao();
+    if (!userDao) return ServiceResult<User>::Fail(ErrorCode::INTERNAL_ERROR, "DAO层初始化失败");
+
+    auto userResult = userDao->getUserById(userId);
+    if (userResult.isConnectionError()) return ServiceResult<User>::Fail(ErrorCode::INTERNAL_ERROR, "数据库连接失败");
+    if (userResult.isInternalError()) return ServiceResult<User>::Fail(ErrorCode::INTERNAL_ERROR, "数据库内部错误");
+    if (userResult.isNotFound()) return ServiceResult<User>::Fail(ErrorCode::NOT_FOUND, "用户不存在");
+
+    return ServiceResult<User>::Ok(*userResult.data, "获取用户信息成功");
 }
 
 ServiceResult<User> BaseService::login(const std::string& email, const std::string& password) {

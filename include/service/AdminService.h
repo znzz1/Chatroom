@@ -1,6 +1,5 @@
 #pragma once
 #include "service/BaseService.h"
-#include <vector>
 
 class AdminService : public BaseService {
 public:
@@ -12,6 +11,6 @@ public:
     ServiceResult<void> setRoomName(int roomId, const std::string& name);
     ServiceResult<void> setRoomDescription(int roomId, const std::string& description);
     ServiceResult<void> setRoomMaxUsers(int roomId, int maxUsers);
-    ServiceResult<void> setRoomStatus(int roomId, RoomStatus status);  
+    ServiceResult<void> setRoomStatus(int roomId, bool is_active);
     ServiceResult<std::vector<Room>> getAllRooms();
 }; 

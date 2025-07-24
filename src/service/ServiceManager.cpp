@@ -10,6 +10,10 @@
 ServiceManager::ServiceManager() {
 }
 
+ServiceResult<User> ServiceManager::getUserInfo(int userId) {
+    return user_service_.BaseService::getUserInfo(userId);
+}
+
 ServiceResult<User> ServiceManager::registerUser(const std::string& email, const std::string& password, const std::string& name) {
     return user_service_.registerUser(email, password, name);
 }
@@ -22,8 +26,8 @@ ServiceResult<void> ServiceManager::changeDisplayName(int userId, const std::str
     return user_service_.changeDisplayName(userId, newName);
 }
 
-ServiceResult<void> ServiceManager::sendMessage(int userId, int roomId, const std::string& content, const std::string& displayName) {
-    return user_service_.sendMessage(userId, roomId, content, displayName);
+ServiceResult<void> ServiceManager::sendMessage(int userId, int roomId, const std::string& content, const std::string& displayName, const std::string& sendTime) {
+    return user_service_.sendMessage(userId, roomId, content, displayName, sendTime);
 }
 
 ServiceResult<std::vector<Message>> ServiceManager::getMessageHistory(int roomId, int limit) {
@@ -62,8 +66,8 @@ ServiceResult<void> ServiceManager::setRoomMaxUsers(int roomId, int maxUsers) {
     return admin_service_.setRoomMaxUsers(roomId, maxUsers);
 }
 
-ServiceResult<void> ServiceManager::setRoomStatus(int roomId, RoomStatus status) {
-    return admin_service_.setRoomStatus(roomId, status);
+ServiceResult<void> ServiceManager::setRoomStatus(int roomId, bool is_active) {
+    return admin_service_.setRoomStatus(roomId, is_active);
 }
 
 ServiceResult<std::vector<Room>> ServiceManager::getAllRooms() {

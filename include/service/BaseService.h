@@ -6,7 +6,6 @@
 #include "models/User.h"
 #include "models/Room.h"
 #include "models/Message.h"
-#include "models/Enums.h"
 
 enum class ErrorCode {
     SUCCESS = 200,
@@ -48,14 +47,16 @@ struct ServiceResult<void> {
 };
 
 class BaseService {
-protected:
+public:
     BaseService();
     ~BaseService() = default;
     
+    ServiceResult<User> getUserInfo(int userId);
     ServiceResult<User> login(const std::string& email, const std::string& password);
     ServiceResult<std::vector<Room>> getActiveRooms();
     ServiceResult<Room> getRoomInfo(int roomId);
     
+protected:
     UserDao* getUserDao() { return DaoFactory::getUserDao(); }
     RoomDao* getRoomDao() { return DaoFactory::getRoomDao(); }
     MessageDao* getMessageDao() { return DaoFactory::getMessageDao(); }

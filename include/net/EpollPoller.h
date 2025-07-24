@@ -6,9 +6,9 @@ class EpollPoller {
 public:
     explicit EpollPoller(int maxEvents = 1024);
     ~EpollPoller();
-    void addFd(int fd, uint32_t events);
-    void modifyFd(int fd, uint32_t events);
-    void removeFd(int fd);
+    bool addFd(int fd, uint32_t events);
+    bool modifyFd(int fd, uint32_t events);
+    bool removeFd(int fd);
     std::vector<epoll_event> poll(int timeoutMs = -1);
     
     void modFd(int fd, uint32_t events) { modifyFd(fd, events); }

@@ -1,21 +1,13 @@
 #pragma once
-#include <mysql/mysql.h>
 #include <string>
 #include <memory>
 #include <vector>
-#include <optional>
-#include <variant>
-#include <functional>
-#include <unordered_map>
-#include <queue>
-#include "database/ConnectionPool.h"
+#include <cstring>
+#include <mysql/mysql.h>
 #include "utils/QueryResult.h"
+#include "database/ExecuteResult.h"
 
-using ExecuteResult = std::variant<
-    std::monostate,
-    std::vector<std::string>,
-    std::vector<std::vector<std::string>>
->;
+class DatabaseConnection;
 
 class DatabaseManager {
 private:
@@ -48,4 +40,6 @@ public:
     QueryResult<ExecuteResult> executeTransaction(Func&& func);
     
     ~DatabaseManager() = default;
-}; 
+};
+
+#include "database/DatabaseManager.inl" 

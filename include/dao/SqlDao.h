@@ -1,10 +1,10 @@
 #pragma once
 #include "database/DatabaseManager.h"
-#include "database/ConnectionPool.h"
 #include "utils/QueryResult.h"
+#include "database/ExecuteResult.h"
 #include <string>
-#include <vector>
 #include <memory>
+#include <vector>
 
 template<typename T>
 class SqlDao {

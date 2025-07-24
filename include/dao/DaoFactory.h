@@ -3,7 +3,6 @@
 #include "RoomDao.h"
 #include "MessageDao.h"
 #include <memory>
-#include <string>
 #include <mutex>
 
 class DaoFactory {
@@ -32,7 +31,7 @@ public:
     static MessageDao* getMessageDao();
         
 private:
-    static UserDao* userDao_;
-    static RoomDao* roomDao_;
-    static MessageDao* messageDao_;
+    static std::unique_ptr<UserDao> userDao_;
+    static std::unique_ptr<RoomDao> roomDao_;
+    static std::unique_ptr<MessageDao> messageDao_;
 }; 

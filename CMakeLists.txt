@@ -12,24 +12,19 @@ endif()
 
 include_directories(include)
 
-add_executable(chatroom
-    src/main.cpp
-    src/net/EpollPoller.cpp
-    src/net/Connection.cpp
-    src/threadpool/ThreadPool.cpp
-    src/dao/DaoFactory.cpp
-    src/dao/DatabaseManager.cpp
-    src/dao/MySqlUserDao.cpp
-    src/dao/MySqlRoomDao.cpp
-    src/service/ChatService.cpp
-    src/handler/MessageHandler.cpp
-    src/utils/PasswordHasher.cpp
-)
+file(GLOB_RECURSE ALL_SOURCES "src/*.cpp")
 
-target_link_libraries(chatroom 
+list(REMOVE_ITEM ALL_SOURCES "${CMAKE_SOURCE_DIR}/src/server/main.cpp")
+
+add_library(chatroom_service_lib STATIC ${ALL_SOURCES})
+
+target_link_libraries(chatroom_service_lib 
     pthread 
     mysqlclient 
     jsoncpp
     ssl
     crypto
 )
+
+add_executable(ChatRoomServer src/server/main.cpp)
+target_link_libraries(ChatRoomServer chatroom_service_lib pthread mysqlclient jsoncpp ssl crypto)

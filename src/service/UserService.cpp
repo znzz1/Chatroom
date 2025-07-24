@@ -53,14 +53,14 @@ ServiceResult<void> UserService::changeDisplayName(int userId, const std::string
     return ServiceResult<void>::Ok("用户名修改成功");
 }
 
-ServiceResult<void> UserService::sendMessage(int userId, int roomId, const std::string& content, const std::string& displayName) {
+ServiceResult<void> UserService::sendMessage(int userId, int roomId, const std::string& content, const std::string& displayName, const std::string& sendTime) {
     auto messageDao = getMessageDao();
     if (!messageDao) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "DAO层初始化失败");
 
-    auto result = messageDao->sendMessageToRoom(userId, roomId, content, displayName);
+    auto result = messageDao->sendMessageToRoom(userId, roomId, content, displayName, sendTime);
 
-    if(result == MessageOperationResult::SQL_CONNECTION_ERROR) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库连接失败");
-    if(result == MessageOperationResult::DATABASE_INTERNAL_ERROR) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库内部错误");
+    if(result.isConnectionError()) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库连接失败");
+    if(result.isInternalError()) return ServiceResult<void>::Fail(ErrorCode::INTERNAL_ERROR, "数据库内部错误");
     return ServiceResult<void>::Ok("消息发送成功");
 }
 

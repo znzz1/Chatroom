@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <arpa/inet.h>
+#include <errno.h>
 #include <iostream>
 #include <algorithm>
 
@@ -13,8 +14,8 @@ Connection::~Connection() {
     write_buffer_.clear();
 }
 
-std::vector<Message> Connection::extractMessages() {
-    std::vector<Message> messages;
+std::vector<NetworkMessage> Connection::extractMessages() {
+    std::vector<NetworkMessage> messages;
     std::lock_guard<std::mutex> lock(mutex_);
     
     while (read_buffer_.size() >= HEADER_SIZE) {
@@ -44,7 +45,7 @@ void Connection::appendToWriteBuffer(const std::string& data) {
     write_buffer_.append(data);
 }
 
-Connection::SendResult Connection::sendFromWriteBuffer(int fd, size_t maxLen) {
+SendResult Connection::sendFromWriteBuffer(int fd, size_t maxLen) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     SendResult result;
@@ -77,7 +78,7 @@ Connection::SendResult Connection::sendFromWriteBuffer(int fd, size_t maxLen) {
     return result;
 }
 
-Connection::ReadResult Connection::recvToReadBuffer(int fd, size_t maxLen) {
+ReadResult Connection::recvToReadBuffer(int fd, size_t maxLen) {
     std::lock_guard<std::mutex> lock(mutex_);
     
     ReadResult result;

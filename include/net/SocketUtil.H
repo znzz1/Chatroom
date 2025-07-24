@@ -1,6 +1,4 @@
-#ifndef SOCKET_UTIL_H
-#define SOCKET_UTIL_H
-
+#pragma once
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -14,5 +12,3 @@ inline bool setNonBlocking(int fd) {
     }
     return true;
 }
-
-#endif

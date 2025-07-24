@@ -6,9 +6,10 @@
 #include <mutex>
 
 DaoFactory* DaoFactory::instance_ = nullptr;
-UserDao* DaoFactory::userDao_ = nullptr;
-RoomDao* DaoFactory::roomDao_ = nullptr;
-MessageDao* DaoFactory::messageDao_ = nullptr;
+std::unique_ptr<UserDao> DaoFactory::userDao_ = nullptr;
+std::unique_ptr<RoomDao> DaoFactory::roomDao_ = nullptr;
+std::unique_ptr<MessageDao> DaoFactory::messageDao_ = nullptr;
+
 std::mutex DaoFactory::instance_mutex_;
 std::mutex DaoFactory::init_mutex_;
 std::mutex DaoFactory::dao_mutex_;
@@ -36,29 +37,18 @@ void DaoFactory::init() {
         instance_ = new DaoFactory();
     }
     
-    userDao_ = instance_->createUserDao().release();
-    roomDao_ = instance_->createRoomDao().release();
-    messageDao_ = instance_->createMessageDao().release();
+    userDao_ = instance_->createUserDao();
+    roomDao_ = instance_->createRoomDao();
+    messageDao_ = instance_->createMessageDao();
     initialized_ = true;
 }
 
 void DaoFactory::cleanup() {
     std::lock_guard<std::mutex> lock(init_mutex_);
     
-    if (userDao_) {
-        delete userDao_;
-        userDao_ = nullptr;
-    }
-    
-    if (roomDao_) {
-        delete roomDao_;
-        roomDao_ = nullptr;
-    }
-    
-    if (messageDao_) {
-        delete messageDao_;
-        messageDao_ = nullptr;
-    }
+    userDao_.reset();
+    roomDao_.reset();
+    messageDao_.reset();
     
     if (instance_) {
         delete instance_;
@@ -86,7 +76,7 @@ UserDao* DaoFactory::getUserDao() {
         std::cerr << "UserDao not initialized. Call DaoFactory::init() first." << std::endl;
         return nullptr;
     }
-    return userDao_;
+    return userDao_.get();
 }
 
 RoomDao* DaoFactory::getRoomDao() {
@@ -95,7 +85,7 @@ RoomDao* DaoFactory::getRoomDao() {
         std::cerr << "RoomDao not initialized. Call DaoFactory::init() first." << std::endl;
         return nullptr;
     }
-    return roomDao_;
+    return roomDao_.get();
 }
 
 MessageDao* DaoFactory::getMessageDao() {
@@ -104,5 +94,5 @@ MessageDao* DaoFactory::getMessageDao() {
         std::cerr << "MessageDao not initialized. Call DaoFactory::init() first." << std::endl;
         return nullptr;
     }
-    return messageDao_;
+    return messageDao_.get();
 }

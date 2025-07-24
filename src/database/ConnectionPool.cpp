@@ -1,7 +1,6 @@
 #include "database/ConnectionPool.h"
 #include <iostream>
 #include <stdexcept>
-#include <algorithm>
 
 ConnectionPool& ConnectionPool::getInstance() {
     static ConnectionPool instance;
@@ -282,9 +281,6 @@ std::shared_ptr<DatabaseConnection> ConnectionPool::createConnection() {
     mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout);
     mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, &timeout);
     mysql_options(mysql, MYSQL_OPT_WRITE_TIMEOUT, &timeout);
-    
-    bool reconnect = true;
-    mysql_options(mysql, MYSQL_OPT_RECONNECT, &reconnect);
     
     if (!mysql_real_connect(mysql, host_.c_str(), username_.c_str(), 
                            password_.c_str(), database_.c_str(), port_, nullptr, 0)) {

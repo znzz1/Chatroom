@@ -1,6 +1,7 @@
 #include "net/EpollPoller.h"
 #include <stdexcept>
 #include <unistd.h>
+#include <errno.h>
 
 EpollPoller::EpollPoller(int maxEvents) : events_(maxEvents) {
     epfd_ = epoll_create1(0);
@@ -8,16 +9,16 @@ EpollPoller::EpollPoller(int maxEvents) : events_(maxEvents) {
 }
 EpollPoller::~EpollPoller() { close(epfd_); }
 
-void EpollPoller::addFd(int fd, uint32_t ev) {
+bool EpollPoller::addFd(int fd, uint32_t ev) {
     epoll_event e{.events = ev, .data = {.fd = fd}};
-    epoll_ctl(epfd_, EPOLL_CTL_ADD, fd, &e);
+    return epoll_ctl(epfd_, EPOLL_CTL_ADD, fd, &e) == 0;
 }
-void EpollPoller::modifyFd(int fd, uint32_t ev) {
+bool EpollPoller::modifyFd(int fd, uint32_t ev) {
     epoll_event e{.events = ev, .data = {.fd = fd}};
-    epoll_ctl(epfd_, EPOLL_CTL_MOD, fd, &e);
+    return epoll_ctl(epfd_, EPOLL_CTL_MOD, fd, &e) == 0;
 }
-void EpollPoller::removeFd(int fd) {
-    epoll_ctl(epfd_, EPOLL_CTL_DEL, fd, nullptr);
+bool EpollPoller::removeFd(int fd) {
+    return epoll_ctl(epfd_, EPOLL_CTL_DEL, fd, nullptr) == 0;
 }
 std::vector<epoll_event> EpollPoller::poll(int timeout) {
     int n = epoll_wait(epfd_, events_.data(), events_.size(), timeout);
