@@ -15,13 +15,13 @@
 ChatRoomServer::ChatRoomServer()
     : listen_fd_(-1)
 {
-    EnvLoader::loadFromFile("config/server.env");
-    auto portOpt = EnvLoader::getInt("SERVER_PORT");
-    if (!portOpt.has_value()) throw std::runtime_error("SERVER_PORT未配置");
-    port_ = static_cast<uint16_t>(portOpt.value());
-
-    auto threadOpt = EnvLoader::getInt("THREAD_POOL_SIZE");
-    size_t threadCount = threadOpt.has_value() ? static_cast<size_t>(threadOpt.value()) : std::thread::hardware_concurrency();
+    port_ = static_cast<uint16_t>(EnvLoader::getInt("SERVER_PORT").value_or(8080));
+    size_t threadCount = EnvLoader::getInt("THREAD_POOL_SIZE").value_or(std::thread::hardware_concurrency());
+    epoll_timeout_ms_ = EnvLoader::getInt("EPOLL_TIMEOUT_MS").value_or(1000);
+    max_read_buffer_size_ = EnvLoader::getInt("MAX_READ_BUFFER_SIZE").value_or(1024 * 1024);
+    max_write_buffer_size_ = EnvLoader::getInt("MAX_WRITE_BUFFER_SIZE").value_or(1024 * 1024);
+    token_expire_minutes_ = EnvLoader::getInt("TOKEN_EXPIRE_MINUTES").value_or(30);
+    cleanup_interval_minutes_ = EnvLoader::getInt("CLEANUP_INTERVAL_MINUTES").value_or(10);
     thread_pool_ = std::make_unique<ThreadPool>(threadCount);
 
     setupServer();
@@ -30,7 +30,7 @@ ChatRoomServer::ChatRoomServer()
 
     cleanup_thread_ = std::thread([this]() {
         while (cleanup_running_) {
-            std::this_thread::sleep_for(std::chrono::minutes(10));
+            std::this_thread::sleep_for(std::chrono::minutes(cleanup_interval_minutes_));
             if (cleanup_running_) cleanupExpiredTokens();
         }
     });
@@ -82,7 +82,7 @@ void ChatRoomServer::run() {
     std::cout << "ChatRoom server listening on port " << port_ << std::endl;
     
     while (running_) {
-        auto events = poller_.poll(EPOLL_TIMEOUT_MS); 
+        auto events = poller_.poll(epoll_timeout_ms_); 
         for (auto& ev : events) {
             handleEvent(ev);
         }
@@ -1458,7 +1458,7 @@ std::string ChatRoomServer::generateToken(int userId, const std::string& role) {
                        std::to_string(timestamp) + "_" +
                        std::to_string(counter);
     
-    int64_t expireTime = timestamp + (TOKEN_EXPIRE_MINUTES * 60 * 1000);
+    int64_t expireTime = timestamp + (token_expire_minutes_ * 60 * 1000);
     
     {
         std::lock_guard<std::mutex> lock(userId_to_token_mutex_);

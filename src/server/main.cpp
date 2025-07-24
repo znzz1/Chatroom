@@ -1,10 +1,12 @@
 #include "database/DatabaseManager.h"
 #include "dao/DaoFactory.h"
 #include "server/ChatRoomServer.h"
+#include "utils/EnvLoader.h"
 #include <iostream>
 
 int main() {
     try {
+        EnvLoader::loadFromFile(".env");
         DatabaseManager::init();
         DaoFactory::init();
         ChatRoomServer server;

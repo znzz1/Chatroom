@@ -68,9 +68,9 @@ public:
     void init(const std::string& host, int port,
               const std::string& username, const std::string& password,
               const std::string& database,
-              int min_connections = 5, int max_connections = 20,
-              std::chrono::seconds connection_timeout = std::chrono::seconds(300),
-              std::chrono::seconds idle_timeout = std::chrono::seconds(600));
+              int min_connections, int max_connections,
+              std::chrono::seconds connection_timeout,
+              std::chrono::seconds idle_timeout);
     
     std::shared_ptr<DatabaseConnection> getConnection(std::chrono::milliseconds timeout = std::chrono::milliseconds(5000));
     

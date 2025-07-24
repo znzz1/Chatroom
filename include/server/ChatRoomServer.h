@@ -13,10 +13,6 @@
 #include <atomic>
 
 constexpr int ROOM_ID_NONE = -1;
-constexpr int EPOLL_TIMEOUT_MS = 1000;
-constexpr int MAX_READ_BUFFER_SIZE = 1024 * 1024;
-constexpr int MAX_WRITE_BUFFER_SIZE = 1024 * 1024;
-constexpr int64_t TOKEN_EXPIRE_MINUTES = 30;
 
 struct RoomInfo {
     std::string name;
@@ -41,7 +37,14 @@ public:
     ~ChatRoomServer();
     void run();    
     void stop();
-    
+
+private:
+    int epoll_timeout_ms_;
+    int max_read_buffer_size_;
+    int max_write_buffer_size_;
+    int64_t token_expire_minutes_;
+    int cleanup_interval_minutes_;
+
 private:
     int listen_fd_;
     uint16_t port_;

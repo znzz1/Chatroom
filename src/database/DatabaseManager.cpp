@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <chrono>
 #include <algorithm>
+#include <string>
 
 QueryResult<ExecuteResult> createErrorResult(const std::string& error_msg) {
     std::string lower_error = error_msg;
@@ -27,26 +28,18 @@ DatabaseManager& DatabaseManager::getInstance() {
     return instance;
 }
 
-void DatabaseManager::init() {
-    const std::vector<std::string> config_files = {
-        ".env",
-        "config/database.env",
-        "config/.env"
-    };
-    
-    for (const auto& file : config_files) {
-        if (EnvLoader::loadFromFile(file)) {
-            break;
-        }
-    }
-    
+void DatabaseManager::init() {    
     const char* host = std::getenv("DB_HOST");
     const char* port = std::getenv("DB_PORT");
     const char* username = std::getenv("DB_USERNAME");
     const char* password = std::getenv("DB_PASSWORD");
     const char* database = std::getenv("DB_DATABASE");
+    const char* min_connections = std::getenv("DB_POOL_MIN");
+    const char* max_connections = std::getenv("DB_POOL_MAX");
+    const char* connection_timeout = std::getenv("DB_CONN_TIMEOUT");
+    const char* idle_timeout = std::getenv("DB_IDLE_TIMEOUT");
     
-    if (!host || !username || !password || !database) {
+    if (!host || !username || !password || !database || !min_connections || !max_connections || !connection_timeout || !idle_timeout) {
         throw std::runtime_error("Missing required database environment variables");
     }
     
@@ -60,7 +53,9 @@ void DatabaseManager::init() {
     manager.database_ = database;
     
     ConnectionPool::getInstance().init(host, port_num, username, password, database, 
-                                      5, 20, std::chrono::seconds(300), std::chrono::seconds(600));
+                                      std::stoi(min_connections), std::stoi(max_connections), 
+                                      std::chrono::seconds(std::stoi(connection_timeout)), 
+                                      std::chrono::seconds(std::stoi(idle_timeout)));
     manager.initialized_ = true;
 }
 
