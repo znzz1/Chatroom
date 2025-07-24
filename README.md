@@ -17,14 +17,14 @@ ChatRoom 是一个基于 C++20 的高性能聊天室后端，采用事件驱动�
 
 ```mermaid
 graph TD
-  Client["客户端"] -->|TCP/JSON| Entry["入口层\n(主程序/协议解析)"]
-  Entry --> Net["网络层\n(epoll/Socket管理)"]
-  Net --> ThreadPool["线程池\n(并发调度)"]
-  Entry --> Service["服务层\n(业务编排/权限校验)"]
-  Service --> Dao["DAO层\n(数据访问/ORM)"]
-  Dao --> ConnPool["连接池\n(MySQL管理)"]
+  Client["客户端"] -->|TCP/JSON| Entry["入口层(主程序/协议解析)"]
+  Entry --> Net["网络层(epoll/Socket管理)"]
+  Net --> ThreadPool["线程池(并发调度)"]
+  Entry --> Service["服务层(业务编排/权限校验)"]
+  Service --> Dao["DAO层(数据访问/ORM)"]
+  Dao --> ConnPool["连接池(MySQL管理)"]
   ConnPool --> DB["MySQL数据库"]
-  Entry --> Utils["工具/通用组件\n(日志/配置/加密)"]
+  Entry --> Utils["工具/通用组件(日志/配置/加密)"]
 
   %% 注释: 各层职责
   %% Entry: 负责协议解析、请求分发
