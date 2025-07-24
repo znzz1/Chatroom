@@ -55,7 +55,7 @@ CREATE TABLE messages (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO users (discriminator, name, email, password_hash, is_admin, created_time) 
-VALUES ('0001', 'znzz1', 'zhun@usc.edu', 'salt$2a0e00cb53940019ffb5ee0dd02ea86282963740d3266c4e3d5632cbe173d797', 1, NOW())
+VALUES ('0001', 'test', '10086@qq.com', 'salt$2a0e00cb53940019ffb5ee0dd02ea86282963740d3266c4e3d5632cbe173d797', 1, NOW())
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 INSERT INTO rooms (name, description, creator_id, max_users, created_time) VALUES
